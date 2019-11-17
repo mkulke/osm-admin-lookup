@@ -1,11 +1,13 @@
-use geojson::{Feature, GeoJson, Geometry, Value};
+use geo_types::MultiPolygon;
+use geojson::{Feature, Geometry, Value};
+use num_traits::Float;
 use osm_boundaries_utils::build_boundary;
-use osmpbfreader::{OsmObj, OsmPbfReader};
+use osmpbfreader::{OsmObj, OsmPbfReader, Relation};
 use rstar::primitives::Rectangle;
 use rstar::Envelope;
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
 use std::error::Error;
-use std::fs::File;
+use std::fs::{write, File};
 
 type Point2D = [f64; 2];
 
@@ -62,41 +64,68 @@ fn test_rtree() {
 }
 
 fn is_admin(obj: &OsmObj) -> bool {
-    obj.is_relation()
-        && obj.tags().contains("boundary", "administrative")
-        && obj.tags().contains("admin_level", "9")
+    get_admin(obj).is_some()
 }
 
-fn convert(mp: geo_types::MultiPolygon<f64>) -> geojson::Geometry {
-    let point = geo_types::Point::new(2., 9.);
-    // let v: geojson::Value = mp.into();
-    let x = geojson::Value::from(&point);
-    let x = geojson::Value::from(&point);
-    unimplemented!();
+fn get_admin(obj: &OsmObj) -> Option<&Relation> {
+    match obj {
+        OsmObj::Relation(rel) => {
+            if obj.tags().contains("boundary", "administrative")
+                && obj.tags().contains("admin_level", "9")
+            {
+                Some(rel)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn to_geometry<T>(mp: &MultiPolygon<T>) -> Geometry
+where
+    T: Float,
+{
+    let value = Value::from(mp);
+    Geometry::new(value)
+}
+
+fn to_feature(geometry: Geometry) -> Feature {
+    Feature {
+        bbox: None,
+        geometry: Some(geometry),
+        id: None,
+        properties: None,
+        foreign_members: None,
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let f = File::open("bremen-latest.osm.pbf")?;
-    let mut pbf = OsmPbfReader::new(f);
+    let file = File::open("bremen-latest.osm.pbf")?;
+    // let file = File::open("berlin-latest.osm.pbf")?;
+    let mut pbf = OsmPbfReader::new(file);
     let tuples = pbf.get_objs_and_deps(is_admin)?;
-    for tuple in tuples.clone() {
-        let (_id, obj) = tuple;
-        if let OsmObj::Relation(rel) = obj {
-            let mp = build_boundary(&rel, &tuples).expect("fail");
-            let v = Value::from(&mp);
-            let g = Geometry::new(v);
-            let gj = GeoJson::Feature(Feature {
-                bbox: None,
-                geometry: Some(g),
-                id: None,
-                properties: None,
-                foreign_members: None,
-            });
-            let gjs = gj.to_string();
-            println!("{:?}", gjs);
-            break;
-        }
-    }
+
+    let features = tuples
+        .values()
+        .filter_map(get_admin)
+        .filter_map(|rel| {
+            let name = rel.tags.get("name")?;
+            let boundary = build_boundary(rel, &tuples)?;
+            Some((name, boundary))
+        })
+        .map(|(_, boundary)| to_geometry(&boundary))
+        .map(to_feature)
+        .collect();
+
+    let feature_collection = geojson::FeatureCollection {
+        bbox: None,
+        features,
+        foreign_members: None,
+    };
+
+    write("output.geojson", feature_collection.to_string())?;
+
     // test_rtree();
     Ok(())
 }
