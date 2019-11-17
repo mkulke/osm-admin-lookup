@@ -1,6 +1,11 @@
+use geojson::{Feature, GeoJson, Geometry, Value};
+use osm_boundaries_utils::build_boundary;
+use osmpbfreader::{OsmObj, OsmPbfReader};
 use rstar::primitives::Rectangle;
 use rstar::Envelope;
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
+use std::error::Error;
+use std::fs::File;
 
 type Point2D = [f64; 2];
 
@@ -34,7 +39,7 @@ impl PointDistance for Piece {
     }
 }
 
-fn main() {
+fn test_rtree() {
     let left_piece = Piece::new([0.0, 0.0], [0.4, 1.0], "left");
     let small_left_piece = Piece::new([0.0, 0.0], [0.3, 1.0], "small left");
     let right_piece = Piece::new([0.6, 0.0], [1.0, 1.0], "right");
@@ -54,4 +59,44 @@ fn main() {
         .for_each(|p| {
             println!("piece: {:?}", p);
         });
+}
+
+fn is_admin(obj: &OsmObj) -> bool {
+    obj.is_relation()
+        && obj.tags().contains("boundary", "administrative")
+        && obj.tags().contains("admin_level", "9")
+}
+
+fn convert(mp: geo_types::MultiPolygon<f64>) -> geojson::Geometry {
+    let point = geo_types::Point::new(2., 9.);
+    // let v: geojson::Value = mp.into();
+    let x = geojson::Value::from(&point);
+    let x = geojson::Value::from(&point);
+    unimplemented!();
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let f = File::open("bremen-latest.osm.pbf")?;
+    let mut pbf = OsmPbfReader::new(f);
+    let tuples = pbf.get_objs_and_deps(is_admin)?;
+    for tuple in tuples.clone() {
+        let (_id, obj) = tuple;
+        if let OsmObj::Relation(rel) = obj {
+            let mp = build_boundary(&rel, &tuples).expect("fail");
+            let v = Value::from(&mp);
+            let g = Geometry::new(v);
+            let gj = GeoJson::Feature(Feature {
+                bbox: None,
+                geometry: Some(g),
+                id: None,
+                properties: None,
+                foreign_members: None,
+            });
+            let gjs = gj.to_string();
+            println!("{:?}", gjs);
+            break;
+        }
+    }
+    // test_rtree();
+    Ok(())
 }
