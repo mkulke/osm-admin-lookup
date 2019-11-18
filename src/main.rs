@@ -2,13 +2,14 @@ use geo_types::MultiPolygon;
 use geojson::{Feature, Geometry, Value};
 use num_traits::Float;
 use osm_boundaries_utils::build_boundary;
-use osmpbfreader::{OsmObj, OsmPbfReader, Relation};
+use osmpbfreader::{OsmId, OsmObj, OsmPbfReader, Relation};
 // use rayon::prelude::*;
 use rstar::primitives::Rectangle;
 use rstar::Envelope;
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
 use serde_json::map::Map;
 use serde_json::to_value;
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs::{write, File};
 
@@ -85,7 +86,8 @@ impl OsmObjExt for OsmObj {
 
 fn get_admin(obj: &OsmObj) -> Option<&Relation> {
     let rel = obj.get_relation()?;
-    if obj.tags().contains("boundary", "administrative") && obj.tags().contains("admin_level", "10")
+    if obj.tags().contains("boundary", "administrative")
+        && (obj.tags().contains("admin_level", "9") || obj.tags().contains("admin_level", "10"))
     {
         Some(rel)
     } else {
@@ -120,18 +122,29 @@ fn to_feature(name: &str, geometry: Geometry) -> Feature {
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let file = File::open("hamburg-latest.osm.pbf")?;
-    // let file = File::open("berlin-latest.osm.pbf")?;
+fn get_btree(file: File) -> Result<BTreeMap<OsmId, OsmObj>, Box<dyn Error>> {
     let mut pbf = OsmPbfReader::new(file);
-    let tuples = pbf.get_objs_and_deps(is_admin)?;
+    // let tuples = pbf.get_objs_and_deps(is_admin)?;
 
-    let features = tuples
+    let mut tuples = BTreeMap::new();
+    for result in pbf.iter() {
+        let obj = result?;
+        tuples.insert(obj.id(), obj);
+    }
+    Ok(tuples)
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // let file = File::open("hamburg-latest.osm.pbf")?;
+    let file = File::open("berlin-regions.pbf")?;
+    let btree = get_btree(file)?;
+
+    let features = btree
         .values()
         .filter_map(get_admin)
         .filter_map(|rel| {
             let name = rel.tags.get("name")?;
-            let boundary = build_boundary(rel, &tuples)?;
+            let boundary = build_boundary(&rel, &btree)?;
             Some((name, boundary))
         })
         .map(|(name, boundary)| {
@@ -139,7 +152,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             let feature = to_feature(name, geometry);
             feature
         })
-        // .map(to_feature)
         .collect();
 
     let feature_collection = geojson::FeatureCollection {
