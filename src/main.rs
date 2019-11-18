@@ -1,4 +1,5 @@
 use geo::algorithm::bounding_rect::BoundingRect;
+use geo::Rect;
 use geo_types::MultiPolygon;
 use geojson::{Feature, Geometry, Value};
 use num_traits::Float;
@@ -136,6 +137,16 @@ fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
     Ok(tuples)
 }
 
+fn build_piece(rect: &Rect<f64>) -> Piece {
+    let min_x = rect.min.x;
+    let min_y = rect.min.y;
+    let max_x = rect.max.x;
+    let max_y = rect.max.y;
+    let lower = [min_x, min_y];
+    let upper = [max_x, max_y];
+    Piece::new(lower, upper, "name")
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     // let file = File::open("hamburg-latest.osm.pbf")?;
     let file = File::open("berlin-regions.pbf")?;
@@ -151,7 +162,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .map(|(name, boundary)| {
             let geometry = to_geometry(&boundary);
-            let _bounding_rect = boundary.bounding_rect();
+            let bounding_rect = boundary.bounding_rect().expect("yo");
+            let min_x = bounding_rect.min.x;
+            let min_y = bounding_rect.min.y;
+            let max_x = bounding_rect.max.x;
+            let max_y = bounding_rect.max.y;
+            let lower = [min_x, min_y];
+            let upper = [max_x, max_y];
+            let _piece = Piece::new(lower, upper, "name");
             let feature = to_feature(name, geometry);
             feature
         })
