@@ -3,9 +3,12 @@ use geojson::{Feature, Geometry, Value};
 use num_traits::Float;
 use osm_boundaries_utils::build_boundary;
 use osmpbfreader::{OsmObj, OsmPbfReader, Relation};
+// use rayon::prelude::*;
 use rstar::primitives::Rectangle;
 use rstar::Envelope;
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
+use serde_json::map::Map;
+use serde_json::to_value;
 use std::error::Error;
 use std::fs::{write, File};
 
@@ -67,18 +70,26 @@ fn is_admin(obj: &OsmObj) -> bool {
     get_admin(obj).is_some()
 }
 
-fn get_admin(obj: &OsmObj) -> Option<&Relation> {
-    match obj {
-        OsmObj::Relation(rel) => {
-            if obj.tags().contains("boundary", "administrative")
-                && obj.tags().contains("admin_level", "9")
-            {
-                Some(rel)
-            } else {
-                None
-            }
+pub trait OsmObjExt {
+    fn get_relation(&self) -> Option<&Relation>;
+}
+
+impl OsmObjExt for OsmObj {
+    fn get_relation(&self) -> Option<&Relation> {
+        match self {
+            OsmObj::Relation(rel) => Some(rel),
+            _ => None,
         }
-        _ => None,
+    }
+}
+
+fn get_admin(obj: &OsmObj) -> Option<&Relation> {
+    let rel = obj.get_relation()?;
+    if obj.tags().contains("boundary", "administrative") && obj.tags().contains("admin_level", "10")
+    {
+        Some(rel)
+    } else {
+        None
     }
 }
 
@@ -90,18 +101,27 @@ where
     Geometry::new(value)
 }
 
-fn to_feature(geometry: Geometry) -> Feature {
+fn to_feature(name: &str, geometry: Geometry) -> Feature {
+    let properties = match to_value(name) {
+        Ok(value) => {
+            let mut map = Map::new();
+            map.insert("name".to_string(), value);
+            Some(map)
+        }
+        _ => None,
+    };
+
     Feature {
         bbox: None,
         geometry: Some(geometry),
         id: None,
-        properties: None,
+        properties: properties,
         foreign_members: None,
     }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let file = File::open("bremen-latest.osm.pbf")?;
+    let file = File::open("hamburg-latest.osm.pbf")?;
     // let file = File::open("berlin-latest.osm.pbf")?;
     let mut pbf = OsmPbfReader::new(file);
     let tuples = pbf.get_objs_and_deps(is_admin)?;
@@ -114,8 +134,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             let boundary = build_boundary(rel, &tuples)?;
             Some((name, boundary))
         })
-        .map(|(_, boundary)| to_geometry(&boundary))
-        .map(to_feature)
+        .map(|(name, boundary)| {
+            let geometry = to_geometry(&boundary);
+            let feature = to_feature(name, geometry);
+            feature
+        })
+        // .map(to_feature)
         .collect();
 
     let feature_collection = geojson::FeatureCollection {
