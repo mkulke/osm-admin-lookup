@@ -1,3 +1,4 @@
+use geo::algorithm::bounding_rect::BoundingRect;
 use geo_types::MultiPolygon;
 use geojson::{Feature, Geometry, Value};
 use num_traits::Float;
@@ -122,7 +123,8 @@ fn to_feature(name: &str, geometry: Geometry) -> Feature {
     }
 }
 
-fn get_btree(file: File) -> Result<BTreeMap<OsmId, OsmObj>, Box<dyn Error>> {
+type OsmMap = BTreeMap<OsmId, OsmObj>;
+fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
     let mut pbf = OsmPbfReader::new(file);
     // let tuples = pbf.get_objs_and_deps(is_admin)?;
 
@@ -149,6 +151,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .map(|(name, boundary)| {
             let geometry = to_geometry(&boundary);
+            let _bounding_rect = boundary.bounding_rect();
             let feature = to_feature(name, geometry);
             feature
         })

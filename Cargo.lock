@@ -396,6 +396,7 @@ dependencies = [
 name = "rs-geo-playground"
 version = "0.1.0"
 dependencies = [
+ "geo 0.12.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "geo-types 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "geojson 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
