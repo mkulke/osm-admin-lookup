@@ -135,19 +135,26 @@ impl OsmObjExt for OsmObj {
     }
 }
 
-fn get_admin(obj: &OsmObj) -> Option<&Relation> {
+fn get_admin(obj: &OsmObj, admin_levels: Vec<String>) -> Option<&Relation> {
     let rel = obj.get_relation()?;
     if !obj.tags().contains("boundary", "administrative") {
         return None;
     }
-    if let Some(level) = obj.tags().get("admin_level") {
-        match level.as_str() {
-            "4" | "6" | "8" | "9" | "10" => Some(rel),
-            _ => None,
-        }
-    } else {
-        None
+    let level = obj.tags().get("admin_level")?;
+    if !admin_levels.contains(level) {
+        return None;
     }
+    Some(rel)
+
+    // if let Some(level) = obj.tags().get("admin_level") {
+    //     if (level
+    //     match level.as_str() {
+    //         "4" | "6" | "8" | "9" | "10" => Some(rel),
+    //         _ => None,
+    //     }
+    // } else {
+    //     None
+    // }
 }
 
 type OsmMap = BTreeMap<OsmId, OsmObj>;
@@ -163,7 +170,10 @@ fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
     Ok(tuples)
 }
 
-pub fn get_osm_boundaries(path: String) -> Result<Vec<Boundary>, Box<dyn Error>> {
+pub fn get_osm_boundaries(
+    path: String,
+    admin_levels: Vec<String>,
+) -> Result<Vec<Boundary>, Box<dyn Error>> {
     // let file = File::open("germany-boundaries.pbf")?;
     let file = File::open(path)?;
     // let file = File::open("berlin-regions.pbf")?;
@@ -171,7 +181,7 @@ pub fn get_osm_boundaries(path: String) -> Result<Vec<Boundary>, Box<dyn Error>>
 
     let boundaries = btree
         .values()
-        .filter_map(get_admin)
+        .filter_map(|obj| get_admin(obj, admin_levels.to_owned()))
         .filter_map(|rel| {
             let name = rel.tags.get("name")?;
             let multi_polygon = build_boundary(&rel, &btree)?;

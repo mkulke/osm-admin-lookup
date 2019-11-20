@@ -1,42 +1,79 @@
 use boundary::get_osm_boundaries;
 use boundary::Boundary;
-use docopt::Docopt;
+use clap::{crate_authors, crate_version, values_t, App, Arg};
 use rstar::RTree;
-use serde::Deserialize;
 use std::error::Error;
 use std::fs::write;
 
 pub mod boundary;
 
-const USAGE: &'static str = "
-build rtree of admin hierarchies
+fn is_admin_level(al: String) -> Result<(), String> {
+    if let Ok(num) = al.parse::<u8>() {
+        if num <= 10 {
+            return Ok(());
+        }
+    }
+    Err("Value is not a proper float.".to_string())
+}
 
-Usage:
-  build-rtree --pbf=FILE --bin=FILE
-  build-rtree (-h | --help)
-  build-rtree --version
+fn get_admin_levels_arg<'a, 'b>(name: &'a str, short: &str) -> Arg<'a, 'b> {
+    Arg::with_name(name)
+        .required(true)
+        .require_delimiter(true)
+        .short(short)
+        .long(name)
+        .value_name("admin levels")
+        .default_value("4,6,8,9,10")
+        .validator(is_admin_level)
+        .min_values(1)
+        .max_values(10)
+        .takes_value(true)
+}
 
-Options:
-  -p FILE, --pbf=FILE  OSM protobuf input file
-  -b FILE, --bin=FILE  RTree binary output file
-  -h --help            Show this screen.
-  --version            Show version.
-";
+fn get_cli_app<'a, 'b>() -> App<'a, 'b> {
+    App::new("build rtree of admin hierarchies")
+        .version(crate_version!())
+        .author(crate_authors!())
+        .arg(get_admin_levels_arg("admin-levels", "a"))
+        .arg(get_file_arg("pbf", "p"))
+        .arg(get_file_arg("bin", "b"))
+}
 
-#[derive(Debug, Deserialize)]
-struct Args {
-    flag_pbf: String,
-    flag_bin: String,
+fn get_file_arg<'a, 'b>(name: &'a str, short: &str) -> Arg<'a, 'b> {
+    Arg::with_name(name)
+        .required(true)
+        .short(short)
+        .long(name)
+        .value_name("FILE")
+        .number_of_values(1)
+        .takes_value(true)
+}
+
+struct Opts {
+    pbf_path: String,
+    bin_path: String,
+    admin_levels: Vec<String>,
+}
+
+fn get_opts() -> Option<Opts> {
+    let app = get_cli_app();
+    let matches = app.get_matches();
+    let pbf_path = matches.value_of("pbf")?.to_string();
+    let bin_path = matches.value_of("bin")?.to_string();
+    let admin_levels = values_t!(matches.values_of("admin-levels"), String).ok()?;
+    let opts = Opts {
+        pbf_path,
+        bin_path,
+        admin_levels,
+    };
+    Some(opts)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.deserialize())
-        .unwrap_or_else(|e| e.exit());
-    // let path = "germany-boundaries.pbf";
-    let boundaries = get_osm_boundaries(args.flag_pbf)?;
+    let opts = get_opts().unwrap();
+    let boundaries = get_osm_boundaries(opts.pbf_path, opts.admin_levels)?;
     let tree = RTree::<Boundary>::bulk_load(boundaries);
     let encoded: Vec<u8> = bincode::serialize(&tree)?;
-    write(args.flag_bin, encoded)?;
+    write(opts.bin_path, encoded)?;
     Ok(())
 }

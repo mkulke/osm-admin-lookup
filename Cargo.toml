@@ -15,7 +15,7 @@ name = "build-rtree"
 path = "src/build-rtree.rs"
 
 [dependencies]
-docopt = "1.1.0"
+clap = "2.33.0"
 bincode = "1.1.4"
 rstar = { version = "0.6.0", features=["serde"] }
 osmpbfreader = "0.13.2"
