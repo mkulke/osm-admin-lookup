@@ -1,5 +1,7 @@
 # rs-geo-playground
 
+![Kreuzberg](kreuzberg.png)
+
 ## Prepare
 
 Download OSM bundle.
