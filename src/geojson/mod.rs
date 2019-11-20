@@ -22,7 +22,7 @@ impl Boundary {
             bbox: None,
             geometry: Some(geometry),
             id: None,
-            properties: properties,
+            properties,
             foreign_members: None,
         }
     }

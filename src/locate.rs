@@ -77,7 +77,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let point = opts.loc;
     let selected_boundaries: Vec<&Boundary> = tree
         .locate_all_at_point(&point)
-        .into_iter()
         .filter(|boundary| boundary.contains(&point))
         .collect();
 
