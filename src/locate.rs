@@ -15,29 +15,6 @@ fn is_float(val: String) -> Result<(), String> {
     }
 }
 
-fn get_loc_arg<'a, 'b>(name: &'a str, short: &str) -> Arg<'a, 'b> {
-    Arg::with_name(name)
-        .required(true)
-        .require_delimiter(true)
-        .short(short)
-        .long(name)
-        .value_name("lon,lat")
-        .validator(is_float)
-        .number_of_values(2)
-        .takes_value(true)
-        .allow_hyphen_values(true)
-}
-
-fn get_file_arg<'a, 'b>(name: &'a str, short: &str, required: bool) -> Arg<'a, 'b> {
-    Arg::with_name(name)
-        .required(required)
-        .short(short)
-        .long(name)
-        .value_name("FILE")
-        .number_of_values(1)
-        .takes_value(true)
-}
-
 struct Opts {
     bin_path: String,
     loc: [f64; 2],
@@ -45,12 +22,33 @@ struct Opts {
 }
 
 fn get_cli_app<'a, 'b>() -> App<'a, 'b> {
+    let file_arg = |name, short, required| {
+        Arg::with_name(name)
+            .required(required)
+            .short(short)
+            .long(name)
+            .value_name("FILE")
+            .number_of_values(1)
+            .takes_value(true)
+    };
+
+    let loc_arg = Arg::with_name("location")
+        .required(true)
+        .require_delimiter(true)
+        .short("l")
+        .long("location")
+        .value_name("lon,lat")
+        .validator(is_float)
+        .number_of_values(2)
+        .takes_value(true)
+        .allow_hyphen_values(true);
+
     App::new("build rtree of admin hierarchies")
         .version(crate_version!())
         .author(crate_authors!())
-        .arg(get_loc_arg("location", "l"))
-        .arg(get_file_arg("bin", "b", true))
-        .arg(get_file_arg("geojson", "g", false))
+        .arg(loc_arg)
+        .arg(file_arg("bin", "b", true))
+        .arg(file_arg("geojson", "g", false))
 }
 
 fn get_opts() -> Option<Opts> {
@@ -80,11 +78,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter(|boundary| boundary.contains(&point))
         .collect();
 
-    for boundary in &selected_boundaries {
-        println!("boundary: {:?}", boundary.name);
-    }
-    if let Some(path) = opts.geojson_path {
-        write_geojson(path, selected_boundaries)?;
+    match opts.geojson_path {
+        Some(path) => write_geojson(path, selected_boundaries)?,
+        None => {
+            for boundary in &selected_boundaries {
+                println!(
+                    "boundary: {}, level: {}",
+                    boundary.name, boundary.admin_level
+                );
+            }
+        }
     }
     Ok(())
 }

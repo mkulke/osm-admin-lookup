@@ -17,22 +17,26 @@ type Point2D = [f64; 2];
 pub struct Boundary {
     rect: Rectangle<Point2D>,
     pub name: String,
+    pub admin_level: String,
     area: f64,
     pub mp: MultiPolygon<f64>,
 }
 
 impl Boundary {
-    pub fn new(mp: MultiPolygon<f64>, name: String) -> Self {
+    pub fn new(mp: MultiPolygon<f64>, name: &str, admin_level: &str) -> Self {
         let rect = mp.bounding_rect().expect("yo");
         let lower = [rect.min.x, rect.min.y];
         let upper = [rect.max.x, rect.max.y];
         let aabb = AABB::from_corners(lower, upper);
         let area = aabb.area();
         let rect = Rectangle::from_aabb(aabb);
+        let name = name.to_string();
+        let admin_level = admin_level.to_string();
         Boundary {
             rect,
             name,
             area,
+            admin_level,
             mp,
         }
     }
@@ -91,7 +95,7 @@ mod tests {
         .map(|(lower, upper, name)| {
             let aabb = AABB::from_corners(*lower, *upper);
             let mp: MultiPolygon<f64> = AABBWrapper(aabb).into();
-            Boundary::new(mp, name.to_string())
+            Boundary::new(mp, name, "0")
         })
         .collect();
 
@@ -135,7 +139,7 @@ impl OsmObjExt for OsmObj {
     }
 }
 
-fn get_admin(obj: &OsmObj, admin_levels: Vec<String>) -> Option<&Relation> {
+fn get_admin<'a>(obj: &'a OsmObj, admin_levels: &Vec<String>) -> Option<&'a Relation> {
     let rel = obj.get_relation()?;
     if !obj.tags().contains("boundary", "administrative") {
         return None;
@@ -145,22 +149,11 @@ fn get_admin(obj: &OsmObj, admin_levels: Vec<String>) -> Option<&Relation> {
         return None;
     }
     Some(rel)
-
-    // if let Some(level) = obj.tags().get("admin_level") {
-    //     if (level
-    //     match level.as_str() {
-    //         "4" | "6" | "8" | "9" | "10" => Some(rel),
-    //         _ => None,
-    //     }
-    // } else {
-    //     None
-    // }
 }
 
 type OsmMap = BTreeMap<OsmId, OsmObj>;
 fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
     let mut pbf = OsmPbfReader::new(file);
-    // let tuples = pbf.get_objs_and_deps(is_admin)?;
 
     let mut tuples = BTreeMap::new();
     for result in pbf.iter() {
@@ -172,22 +165,21 @@ fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
 
 pub fn get_osm_boundaries(
     path: String,
-    admin_levels: Vec<String>,
+    admin_levels: &Vec<String>,
 ) -> Result<Vec<Boundary>, Box<dyn Error>> {
-    // let file = File::open("germany-boundaries.pbf")?;
     let file = File::open(path)?;
-    // let file = File::open("berlin-regions.pbf")?;
     let btree = get_btree(file)?;
 
     let boundaries = btree
         .values()
-        .filter_map(|obj| get_admin(obj, admin_levels.to_owned()))
+        .filter_map(|obj| get_admin(obj, admin_levels))
         .filter_map(|rel| {
             let name = rel.tags.get("name")?;
+            let admin_level = rel.tags.get("admin_level")?;
             let multi_polygon = build_boundary(&rel, &btree)?;
-            Some((name, multi_polygon))
+            let boundary = Boundary::new(multi_polygon, name, admin_level);
+            Some(boundary)
         })
-        .map(|(name, multi_polygon)| Boundary::new(multi_polygon, name.to_string()))
         .collect();
     Ok(boundaries)
 }
