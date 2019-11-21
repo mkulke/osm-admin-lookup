@@ -14,9 +14,14 @@ path = "src/locate.rs"
 name = "build-rtree"
 path = "src/build-rtree.rs"
 
+[[bin]]
+name = "bench"
+path = "src/bench.rs"
+
 [dependencies]
 clap = "2.33.0"
 bincode = "1.1.4"
+easybench = "1.0.0"
 rstar = { version = "0.6.0", features=["serde"] }
 osmpbfreader = "0.13.2"
 osm_boundaries_utils = "0.5.0"

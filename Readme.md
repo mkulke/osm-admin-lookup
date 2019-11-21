@@ -49,3 +49,12 @@ Compile geojson file with boundaries.
 cat boundaries.geojson | pbcopy
 # paste in geojson.io or similar
 ```
+
+## Benchmark
+
+```bash
+./target/release/bench -l 13.4303813,52.528289 -b rtree.bin
+rtree:  32us 427ns (R²=1.000, 32975 iterations in 84 samples)
+flat:  177us 339ns (R²=0.999, 5919 iterations in 66 samples)
+```
+
