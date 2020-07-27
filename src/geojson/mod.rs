@@ -2,7 +2,7 @@ use super::boundary::Boundary;
 use geojson::{Feature, Geometry, Value};
 use serde_json::map::Map;
 use serde_json::to_value;
-use std::fs::write;
+use std::io::Write;
 
 impl Boundary {
     pub fn to_feature(&self) -> Feature {
@@ -28,7 +28,10 @@ impl Boundary {
     }
 }
 
-pub fn write_geojson(path: String, boundaries: Vec<&Boundary>) -> Result<(), std::io::Error> {
+pub fn write_geojson(
+    mut writer: impl Write,
+    boundaries: Vec<&Boundary>,
+) -> Result<(), std::io::Error> {
     let features = boundaries
         .iter()
         .map(|boundary| boundary.to_feature())
@@ -40,5 +43,6 @@ pub fn write_geojson(path: String, boundaries: Vec<&Boundary>) -> Result<(), std
         foreign_members: None,
     };
 
-    write(path, feature_collection.to_string())
+    writer.write(feature_collection.to_string().as_bytes())?;
+    Ok(())
 }

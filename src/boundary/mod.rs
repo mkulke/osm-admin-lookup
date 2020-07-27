@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs::File;
+use std::path::PathBuf;
 
 type Point2D = [f64; 2];
 
@@ -25,8 +26,8 @@ pub struct Boundary {
 impl Boundary {
     pub fn new(mp: MultiPolygon<f64>, name: &str, admin_level: &str) -> Self {
         let rect = mp.bounding_rect().expect("yo");
-        let lower = [rect.min.x, rect.min.y];
-        let upper = [rect.max.x, rect.max.y];
+        let lower = [rect.min().x, rect.min().y];
+        let upper = [rect.max().x, rect.max().y];
         let aabb = AABB::from_corners(lower, upper);
         let area = aabb.area();
         let rect = Rectangle::from_aabb(aabb);
@@ -139,13 +140,13 @@ impl OsmObjExt for OsmObj {
     }
 }
 
-fn get_admin<'a>(obj: &'a OsmObj, admin_levels: &Vec<String>) -> Option<&'a Relation> {
+fn get_admin<'a>(obj: &'a OsmObj, admin_levels: &Vec<u8>) -> Option<&'a Relation> {
     let rel = obj.get_relation()?;
     if !obj.tags().contains("boundary", "administrative") {
         return None;
     }
-    let level = obj.tags().get("admin_level")?;
-    if !admin_levels.contains(level) {
+    let level: u8 = obj.tags().get("admin_level")?.parse().ok()?;
+    if !admin_levels.contains(&level) {
         return None;
     }
     Some(rel)
@@ -164,8 +165,8 @@ fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
 }
 
 pub fn get_osm_boundaries(
-    path: String,
-    admin_levels: &Vec<String>,
+    path: PathBuf,
+    admin_levels: &Vec<u8>,
 ) -> Result<Vec<Boundary>, Box<dyn Error>> {
     let file = File::open(path)?;
     let btree = get_btree(file)?;
