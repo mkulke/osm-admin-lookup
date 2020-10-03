@@ -1,5 +1,7 @@
 use boundary::Boundary;
 use rstar::RTree;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -9,12 +11,25 @@ use structopt::StructOpt;
 pub mod boundary;
 pub mod geojson;
 
+#[derive(Serialize, Deserialize)]
+struct Input {
+    id: String,
+    loc: [f64; 2],
+}
+
 #[derive(Debug, StructOpt)]
 #[structopt(name = "bulk", about = "bulk resolve lines from stdin")]
 struct Opt {
     /// output bin path
     #[structopt(short = "b", long = "bin")]
     bin_path: PathBuf,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Output {
+    pub id: String,
+    pub boundary_name: String,
+    pub admin_level: u8,
 }
 
 fn read_lines() -> io::Result<io::Lines<io::BufReader<io::Stdin>>> {
@@ -29,20 +44,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     let lines = read_lines()?;
     for line in lines {
         let line = line?;
-        let lng_lat: Vec<f64> = line.split(",").map(|s| s.parse().unwrap()).collect();
-        let loc: [f64; 2] = [lng_lat[1], lng_lat[2]];
-        let id = lng_lat[0];
-        let candidates: Vec<&Boundary> = tree.locate_all_at_point(&loc.into()).collect();
+        let input: Input = serde_json::from_str(&line)?;
+        let candidates: Vec<&Boundary> = tree.locate_all_at_point(&input.loc).collect();
         let boundaries: Vec<&Boundary> = candidates
             .into_iter()
             // .into_par_iter()
-            .filter(|boundary| boundary.contains(&loc.into()))
+            .filter(|boundary| boundary.contains(&input.loc))
             .collect();
         for boundary in boundaries {
-            println!(
-                "id: {}, boundary: {}, level: {}",
-                id, boundary.name, boundary.admin_level
-            );
+            let output = json!({
+                "id": input.id,
+                "boundary_name": boundary.name,
+                "admin_level": boundary.admin_level,
+            });
+            println!("{}", output);
         }
     }
     Ok(())

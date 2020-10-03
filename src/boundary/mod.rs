@@ -18,13 +18,13 @@ type Point2D = [f64; 2];
 pub struct Boundary {
     rect: Rectangle<Point2D>,
     pub name: String,
-    pub admin_level: String,
+    pub admin_level: u8,
     area: f64,
     pub mp: MultiPolygon<f64>,
 }
 
 impl Boundary {
-    pub fn new(mp: MultiPolygon<f64>, name: &str, admin_level: &str) -> Self {
+    pub fn new(mp: MultiPolygon<f64>, name: &str, admin_level: u8) -> Self {
         let rect = mp.bounding_rect().expect("yo");
         let lower = [rect.min().x, rect.min().y];
         let upper = [rect.max().x, rect.max().y];
@@ -32,7 +32,6 @@ impl Boundary {
         let area = aabb.area();
         let rect = Rectangle::from_aabb(aabb);
         let name = name.to_string();
-        let admin_level = admin_level.to_string();
         Boundary {
             rect,
             name,
@@ -96,7 +95,7 @@ mod tests {
         .map(|(lower, upper, name)| {
             let aabb = AABB::from_corners(*lower, *upper);
             let mp: MultiPolygon<f64> = AABBWrapper(aabb).into();
-            Boundary::new(mp, name, "0")
+            Boundary::new(mp, name, 0)
         })
         .collect();
 
@@ -106,7 +105,6 @@ mod tests {
     fn locate(rtree: &RTree<Boundary>, point: &Point2D) -> Vec<String> {
         rtree
             .locate_all_at_point(point)
-            .into_iter()
             .map(|boundary| boundary.name.clone())
             .collect()
     }
@@ -140,7 +138,7 @@ impl OsmObjExt for OsmObj {
     }
 }
 
-fn get_admin<'a>(obj: &'a OsmObj, admin_levels: &Vec<u8>) -> Option<&'a Relation> {
+fn get_admin<'a>(obj: &'a OsmObj, admin_levels: &[u8]) -> Option<&'a Relation> {
     let rel = obj.get_relation()?;
     if !obj.tags().contains("boundary", "administrative") {
         return None;
@@ -166,7 +164,7 @@ fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
 
 pub fn get_osm_boundaries(
     path: PathBuf,
-    admin_levels: &Vec<u8>,
+    admin_levels: &[u8],
 ) -> Result<Vec<Boundary>, Box<dyn Error>> {
     let file = File::open(path)?;
     let btree = get_btree(file)?;
@@ -176,7 +174,7 @@ pub fn get_osm_boundaries(
         .filter_map(|obj| get_admin(obj, admin_levels))
         .filter_map(|rel| {
             let name = rel.tags.get("name")?;
-            let admin_level = rel.tags.get("admin_level")?;
+            let admin_level = rel.tags.get("admin_level")?.parse().ok()?;
             let multi_polygon = build_boundary(&rel, &btree)?;
             let boundary = Boundary::new(multi_polygon, name, admin_level);
             Some(boundary)

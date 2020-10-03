@@ -43,6 +43,6 @@ pub fn write_geojson(
         foreign_members: None,
     };
 
-    writer.write(feature_collection.to_string().as_bytes())?;
+    writer.write_all(feature_collection.to_string().as_bytes())?;
     Ok(())
 }
