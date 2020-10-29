@@ -1,5 +1,6 @@
 use serde::de::Error as SerdeError;
-use serde::{Deserialize, Deserializer};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::error::Error;
 use std::num::ParseFloatError;
 use std::str::FromStr;
@@ -11,7 +12,7 @@ pub struct Location {
 }
 
 impl Location {
-    fn new(lng: f64, lat: f64) -> Result<Location, &'static str> {
+    pub fn new(lng: f64, lat: f64) -> Result<Location, &'static str> {
         if lng > 180.0 || lng < -180.0 {
             return Err("lng has to be a value between -180 & 180");
         }
@@ -44,6 +45,18 @@ impl<'de> Deserialize<'de> for Location {
     {
         let string = String::deserialize(deserializer)?;
         parse_loc_str(&string).map_err(SerdeError::custom)
+    }
+}
+
+impl Serialize for Location {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Location", 2)?;
+        state.serialize_field("lng", &self.lng)?;
+        state.serialize_field("lat", &self.lat)?;
+        state.end()
     }
 }
 
