@@ -26,8 +26,9 @@ pub struct ServiceConfig {
     #[structopt(short = "b", long = "bin", env = "RTREE_BIN")]
     pub bin_path: PathBuf,
     /// parallel bulk processing
-    #[structopt(short, long, env = "PARALLEL")]
+    #[structopt(short = "P", long, env = "PARALLEL")]
     pub parallel: bool,
+    /// http port
     #[structopt(short, long, env = "PORT", default_value = "8080")]
     pub port: u16,
 }
