@@ -4,33 +4,22 @@ use actix_web::middleware::Logger;
 use actix_web::{
     error, get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
 };
-use boundary::Boundary;
+use boundary::{get_osm_boundaries, Boundary};
 use derive_more::Display;
 use futures::StreamExt;
 use location::Location;
 use rayon::prelude::*;
 use rstar::RTree;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
 use std::path::PathBuf;
 use std::str::from_utf8;
-use structopt::StructOpt;
 
 pub mod boundary;
 pub mod location;
-
-#[derive(Debug, StructOpt)]
-#[structopt(name = "service", about = "locate in rtree")]
 pub struct ServiceConfig {
-    /// rtree bin path
-    #[structopt(short = "b", long = "bin", env = "RTREE_BIN")]
-    pub bin_path: PathBuf,
-    /// parallel bulk processing
-    #[structopt(short = "P", long, env = "PARALLEL")]
-    pub parallel: bool,
-    /// http port
-    #[structopt(short, long, env = "PORT", default_value = "8080")]
+    pub tree: RTree<Boundary>,
     pub port: u16,
+    pub parallel: bool,
 }
 
 #[derive(Deserialize)]
@@ -186,22 +175,24 @@ mod tests {
     }
 }
 
-pub fn load_tree(path: PathBuf) -> Result<RTree<Boundary>, std::io::Error> {
-    let file = File::open(path)?;
-    let tree: RTree<Boundary> = bincode::deserialize_from(file).map_err(|e| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("could not deserialize rtree binary: {}", e.to_string()),
-        )
-    })?;
+pub fn load_tree(
+    path: PathBuf,
+    admin_level: &[u8],
+) -> Result<RTree<Boundary>, Box<dyn std::error::Error>> {
+    let boundaries = get_osm_boundaries(path, admin_level)?;
+    let tree = RTree::bulk_load(boundaries);
     Ok(tree)
 }
 
 pub fn run_service(config: ServiceConfig) -> Result<Server, std::io::Error> {
     std::env::set_var("RUST_LOG", "info,actix_web=error");
     env_logger::init();
-    let tree = load_tree(config.bin_path)?;
-    let parallel = config.parallel;
+    // let tree = load_tree(config.bin_path)?;
+    let ServiceConfig {
+        tree,
+        port,
+        parallel,
+    } = config;
     let data = web::Data::new(Data { tree, parallel });
     log::info!("rtree loaded");
     let server = HttpServer::new(move || {
@@ -214,7 +205,7 @@ pub fn run_service(config: ServiceConfig) -> Result<Server, std::io::Error> {
             .service(bulk_stream)
             .service(bulk)
     })
-    .bind(format!("127.0.0.1:{}", config.port))?
+    .bind(format!("127.0.0.1:{}", port))?
     .run();
     Ok(server)
 }

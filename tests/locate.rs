@@ -6,7 +6,7 @@ async fn locate() {
 
     // Act
     let response = client
-        .get("http://127.0.0.1:8081/locate?loc=12.533869297330039,52.157853041951206")
+        .get("http://127.0.0.1:8081/locate?loc=8.822,53.089")
         .send()
         .await
         .expect("Failed to execute request.");
@@ -14,15 +14,27 @@ async fn locate() {
     // Assert
     assert!(response.status().is_success());
     let text = response.text().await.expect("failed to read body");
-    assert_eq!(
-        text,
-        "{\"names\":[\"Brandenburg\",\"Potsdam-Mittelmark\",\"Bad Belzig\",\"Lübnitz\"]}"
-    );
+    assert_eq!(text, "{\"names\":[\"Schwachhausen\"]}");
+
+    let response = client
+        .get("http://127.0.0.1:8081/locate?loc=9.822,53.089")
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Assert
+    assert!(response.status().is_success());
+    let text = response.text().await.expect("failed to read body");
+    assert_eq!(text, "{\"names\":[]}");
 }
 
 fn spawn_app() {
+    let path = "./tests/data/schwachhausen.pbf";
+    let admin_levels = [10];
+    let tree =
+        rs_geo_playground::load_tree(path.into(), &admin_levels).expect("could not build rtree");
     let config = rs_geo_playground::ServiceConfig {
-        bin_path: "./brandenburg-rtree.bin".into(),
+        tree,
         parallel: false,
         port: 8081,
     };
