@@ -190,8 +190,9 @@ pub fn load_tree(
 }
 
 fn get_subscriber(env_filter: String) -> impl Subscriber + Send + Sync {
-    const PKG_NAME: &'static str = env!("CARGO_PKG_NAME");
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new(env_filter));
+    const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
     let formatting_layer = BunyanFormattingLayer::new(PKG_NAME.into(), std::io::stdout);
     Registry::default()
         .with(env_filter)
