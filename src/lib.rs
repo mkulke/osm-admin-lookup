@@ -48,7 +48,7 @@ struct ParsingError(String);
 impl error::ResponseError for ParsingError {}
 
 fn parse_loc_line_2(line: &str) -> Result<(&str, Location), ParsingError> {
-    let parts: Vec<&str> = line.split(",").take(3).collect();
+    let parts: Vec<&str> = line.split(',').take(3).collect();
     if parts.len() != 3 {
         return Err(ParsingError(format!(
             "csv row needs to have 3 fields: \"id,lng,lat\" {}",
