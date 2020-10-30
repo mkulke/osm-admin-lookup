@@ -1,5 +1,5 @@
-use rs_geo_playground::boundary::Boundary;
-use rs_geo_playground::{run_service, ServiceConfig};
+use osm_admin_hierarchies::boundary::Boundary;
+use osm_admin_hierarchies::{run_service, ServiceConfig};
 use rstar::RTree;
 use std::fs::File;
 use std::io::{Error, ErrorKind};

@@ -29,15 +29,16 @@ async fn locate() {
 }
 
 fn spawn_app() {
+    use osm_admin_hierarchies::{load_tree, run_service, ServiceConfig};
+
     let path = "./tests/data/schwachhausen.pbf";
     let admin_levels = [10];
-    let tree =
-        rs_geo_playground::load_tree(path.into(), &admin_levels).expect("could not build rtree");
-    let config = rs_geo_playground::ServiceConfig {
+    let tree = load_tree(path.into(), &admin_levels).expect("could not build rtree");
+    let config = ServiceConfig {
         tree,
         parallel: false,
         port: 8081,
     };
-    let server = rs_geo_playground::run_service(config).expect("Failed to start server");
+    let server = run_service(config).expect("Failed to start server");
     let _ = tokio::spawn(server);
 }

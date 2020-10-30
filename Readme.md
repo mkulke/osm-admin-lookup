@@ -1,4 +1,4 @@
-# rs-geo-playground
+# osm-admin-hierarchies
 
 ![Kreuzberg](kreuzberg.png)
 
