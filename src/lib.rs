@@ -1,6 +1,5 @@
 use actix_utils::mpsc;
 use actix_web::dev::Server;
-use actix_web::middleware::Logger;
 use actix_web::{
     error, get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
 };
@@ -13,6 +12,11 @@ use rstar::RTree;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::str::from_utf8;
+use tracing::{instrument, subscriber::set_global_default, Subscriber};
+use tracing_actix_web::TracingLogger;
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_log::LogTracer;
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
 pub mod boundary;
 pub mod location;
@@ -112,7 +116,8 @@ async fn bulk_stream(
     Ok(HttpResponse::Ok().streaming(rx_body))
 }
 
-fn process_line(line: &&str, tree: &RTree<Boundary>) -> Result<String, ParsingError> {
+#[instrument(skip(tree))]
+fn process_line(line: &str, tree: &RTree<Boundary>) -> Result<String, ParsingError> {
     let (id, loc) = parse_loc_line_2(line)?;
     let names = boundary_names(&loc, tree);
     let output = format!("{},{}\n", id, names.join(","));
@@ -126,7 +131,7 @@ async fn bulk(mut payload: web::Payload, data: web::Data<Data>) -> Result<HttpRe
         bytes.extend_from_slice(&item?);
     }
     let output_lines = web::block(move || -> Result<Vec<String>, ParsingError> {
-        let process = |line| process_line(line, &data.tree);
+        let process = |line: &&str| process_line(*line, &data.tree);
         let utf8_str = from_utf8(&bytes)
             .map_err(|_| ParsingError("could not parse payload into utf8 string".into()))?;
         let lines: Vec<&str> = utf8_str.split_terminator('\n').collect();
@@ -184,9 +189,26 @@ pub fn load_tree(
     Ok(tree)
 }
 
+fn get_subscriber(env_filter: String) -> impl Subscriber + Send + Sync {
+    const PKG_NAME: &'static str = env!("CARGO_PKG_NAME");
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new(env_filter));
+    let formatting_layer = BunyanFormattingLayer::new(PKG_NAME.into(), std::io::stdout);
+    Registry::default()
+        .with(env_filter)
+        .with(JsonStorageLayer)
+        .with(formatting_layer)
+}
+
+fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
+    LogTracer::init().expect("Failed to set logger");
+    set_global_default(subscriber).expect("Failed to set subscriber");
+}
+
 pub fn run_service(config: ServiceConfig) -> Result<Server, std::io::Error> {
     std::env::set_var("RUST_LOG", "info,actix_web=error");
-    env_logger::init();
+    let subscriber = get_subscriber("info".into());
+    init_subscriber(subscriber);
+    // env_logger::init();
     // let tree = load_tree(config.bin_path)?;
     let ServiceConfig {
         tree,
@@ -198,7 +220,8 @@ pub fn run_service(config: ServiceConfig) -> Result<Server, std::io::Error> {
     let server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .wrap(Logger::default())
+            // .wrap(Logger::default())
+            .wrap(TracingLogger)
             .service(health)
             .service(locate)
             .service(locate_async)

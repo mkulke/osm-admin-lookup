@@ -31,7 +31,7 @@ pub fn load_tree(path: PathBuf) -> Result<RTree<Boundary>, Error> {
     Ok(tree)
 }
 
-#[actix_rt::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let opt = Opt::from_args();
     let tree = load_tree(opt.bin_path)?;
