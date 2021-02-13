@@ -29,10 +29,6 @@ path = "src/service.rs"
 name = "bench"
 path = "src/bench.rs"
 
-[[bin]]
-name = "mgns"
-path = "src/mgns.rs"
-
 [dependencies]
 bincode = "1.1"
 easybench = "1.0"

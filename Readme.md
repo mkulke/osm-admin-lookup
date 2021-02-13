@@ -58,3 +58,14 @@ rtree:  32us 427ns (R²=1.000, 32975 iterations in 84 samples)
 flat:  177us 339ns (R²=0.999, 5919 iterations in 66 samples)
 ```
 
+## Web Service
+
+```bash
+cargo r --release --bin service -- --bin rtree.bin
+```
+
+```bash
+export LOC=13.425979614257812,52.53919655252312
+curl "localhost:8080/locate?loc=$LOC"
+{"names":["Berlin","Pankow","Prenzlauer Berg"]}
+```
