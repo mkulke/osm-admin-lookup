@@ -13,11 +13,11 @@ pub struct Location {
 
 impl Location {
     pub fn new(lng: f64, lat: f64) -> Result<Location, &'static str> {
-        if lng > 180.0 || lng < -180.0 {
+        if !(-180.0..=180.0).contains(&lng) {
             return Err("lng has to be a value between -180 & 180");
         }
 
-        if lat > 90.0 || lat < -90.0 {
+        if !(-90.0..=90.0).contains(&lat) {
             return Err("lat has to be a value between -90 & 90");
         }
 

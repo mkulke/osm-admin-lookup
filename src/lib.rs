@@ -3,23 +3,25 @@ use actix_web::dev::Server;
 use actix_web::{
     error, get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
 };
+use actix_web_opentelemetry::{RequestMetrics, RequestTracing};
 use boundary::{get_osm_boundaries, Boundary};
 use derive_more::Display;
 use futures::StreamExt;
 use location::Location;
+use observability::{build_tracer_provider, is_metrics_route};
+use opentelemetry::{global, sdk::propagation::TraceContextPropagator};
 use rayon::prelude::*;
 use rstar::RTree;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::str::from_utf8;
-use tracing::{instrument, subscriber::set_global_default, Subscriber};
+use tracing::instrument;
 use tracing_actix_web::TracingLogger;
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
-use tracing_log::LogTracer;
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
 pub mod boundary;
 pub mod location;
+pub mod observability;
+
 pub struct ServiceConfig {
     pub tree: RTree<Boundary>,
     pub port: u16,
@@ -189,40 +191,28 @@ pub fn load_tree(
     Ok(tree)
 }
 
-fn get_subscriber(env_filter: String) -> impl Subscriber + Send + Sync {
-    const PKG_NAME: &str = env!("CARGO_PKG_NAME");
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
-    let formatting_layer = BunyanFormattingLayer::new(PKG_NAME.into(), std::io::stdout);
-    Registry::default()
-        .with(env_filter)
-        .with(JsonStorageLayer)
-        .with(formatting_layer)
-}
-
-fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
-    LogTracer::init().expect("Failed to set logger");
-    set_global_default(subscriber).expect("Failed to set subscriber");
-}
-
 pub fn run_service(config: ServiceConfig) -> Result<Server, std::io::Error> {
-    std::env::set_var("RUST_LOG", "info,actix_web=error");
-    let subscriber = get_subscriber("info".into());
-    init_subscriber(subscriber);
-    // env_logger::init();
-    // let tree = load_tree(config.bin_path)?;
     let ServiceConfig {
         tree,
         port,
         parallel,
     } = config;
     let data = web::Data::new(Data { tree, parallel });
-    log::info!("rtree loaded");
+
+    global::set_text_map_propagator(TraceContextPropagator::new());
+    let _uninstall = global::set_tracer_provider(build_tracer_provider());
+
+    let prometheus_exporter = opentelemetry_prometheus::exporter().init();
+    let meter = global::meter("actix_web");
+    let request_metrics =
+        RequestMetrics::new(meter, Some(is_metrics_route), Some(prometheus_exporter));
+
     let server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            // .wrap(Logger::default())
+            .wrap(RequestTracing::new())
             .wrap(TracingLogger)
+            .wrap(request_metrics.clone())
             .service(health)
             .service(locate)
             .service(locate_async)
