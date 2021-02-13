@@ -32,16 +32,11 @@ struct Output {
     pub admin_level: u8,
 }
 
-fn read_lines() -> io::Result<io::Lines<io::BufReader<io::Stdin>>> {
-    let file = io::stdin();
-    Ok(io::BufReader::new(file).lines())
-}
-
 fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
     let file = File::open(opt.bin_path)?;
     let tree: RTree<Boundary> = bincode::deserialize_from(file)?;
-    let lines = read_lines()?;
+    let lines = io::BufReader::new(io::stdin()).lines();
     for line in lines {
         let line = line?;
         let input: Input = serde_json::from_str(&line)?;
