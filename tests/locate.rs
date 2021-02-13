@@ -1,12 +1,15 @@
+use osm_admin_hierarchies::{load_tree, run_service, ServiceConfig};
+use std::net::TcpListener;
+
 #[actix_rt::test]
-async fn locate() {
+async fn locate_hit() {
     // Arrange
-    spawn_app();
+    let base_url = spawn_app();
     let client = reqwest::Client::new();
 
     // Act
     let response = client
-        .get("http://127.0.0.1:8081/locate?loc=8.822,53.089")
+        .get(&format!("{}/locate?loc=8.822,53.089", &base_url))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -15,9 +18,17 @@ async fn locate() {
     assert!(response.status().is_success());
     let text = response.text().await.expect("failed to read body");
     assert_eq!(text, "{\"names\":[\"Schwachhausen\"]}");
+}
 
+#[actix_rt::test]
+async fn locate_miss() {
+    // Arrange
+    let base_url = spawn_app();
+    let client = reqwest::Client::new();
+
+    // Act
     let response = client
-        .get("http://127.0.0.1:8081/locate?loc=9.822,53.089")
+        .get(&format!("{}/locate?loc=9.822,53.089", &base_url))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -28,17 +39,18 @@ async fn locate() {
     assert_eq!(text, "{\"names\":[]}");
 }
 
-fn spawn_app() {
-    use osm_admin_hierarchies::{load_tree, run_service, ServiceConfig};
-
+fn spawn_app() -> String {
     let path = "./tests/data/schwachhausen.pbf";
     let admin_levels = [10];
     let tree = load_tree(path.into(), &admin_levels).expect("could not build rtree");
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
+    let port = listener.local_addr().unwrap().port();
     let config = ServiceConfig {
         tree,
         parallel: false,
-        port: 8081,
+        listener,
     };
     let server = run_service(config).expect("Failed to start server");
     let _ = tokio::spawn(server);
+    format!("http://127.0.0.1:{}", port)
 }

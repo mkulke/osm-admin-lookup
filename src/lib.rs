@@ -13,6 +13,7 @@ use opentelemetry::{global, sdk::propagation::TraceContextPropagator};
 use rayon::prelude::*;
 use rstar::RTree;
 use serde::{Deserialize, Serialize};
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::str::from_utf8;
 use tracing::instrument;
@@ -24,8 +25,8 @@ pub mod observability;
 
 pub struct ServiceConfig {
     pub tree: RTree<Boundary>,
-    pub port: u16,
     pub parallel: bool,
+    pub listener: TcpListener,
 }
 
 #[derive(Deserialize)]
@@ -194,7 +195,7 @@ pub fn load_tree(
 pub fn run_service(config: ServiceConfig) -> Result<Server, std::io::Error> {
     let ServiceConfig {
         tree,
-        port,
+        listener,
         parallel,
     } = config;
     let data = web::Data::new(Data { tree, parallel });
@@ -219,7 +220,7 @@ pub fn run_service(config: ServiceConfig) -> Result<Server, std::io::Error> {
             .service(bulk_stream)
             .service(bulk)
     })
-    .bind(format!("127.0.0.1:{}", port))?
+    .listen(listener)?
     .run();
     Ok(server)
 }

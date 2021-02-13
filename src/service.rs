@@ -3,6 +3,7 @@ use osm_admin_hierarchies::{run_service, ServiceConfig};
 use rstar::RTree;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
+use std::net::TcpListener;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tracing::subscriber::set_global_default;
@@ -62,10 +63,11 @@ async fn main() -> std::io::Result<()> {
     log::info!("rtree loaded");
 
     let Opt { parallel, port, .. } = opt;
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port))?;
     let config = ServiceConfig {
         tree,
         parallel,
-        port,
+        listener,
     };
 
     run_service(config)?.await
