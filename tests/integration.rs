@@ -39,6 +39,34 @@ async fn locate_miss() {
     assert_eq!(text, "{\"names\":[]}");
 }
 
+#[actix_rt::test]
+async fn bulk() {
+    // Arrange
+    let base_url = spawn_app();
+    let client = reqwest::Client::new();
+    let locs = "1,8.859,53.090\n\
+                2,8.822,53.089\n\
+                3,0.0,0.0";
+
+    // Act
+    let response = client
+        .post(&format!("{}/bulk", &base_url))
+        .body(locs)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Assert
+    assert!(response.status().is_success());
+    let text = response.text().await.expect("failed to read body");
+    assert_eq!(
+        text,
+        "1,Schwachhausen\n\
+         2,Schwachhausen\n\
+         3,\n"
+    );
+}
+
 fn spawn_app() -> String {
     let path = "./tests/data/schwachhausen.pbf";
     let admin_levels = [10];

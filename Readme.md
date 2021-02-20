@@ -52,16 +52,27 @@ cat boundaries.geojson | pbcopy
 
 ## Benchmark
 
+The benchmark requires a pre-built rtree (w/ `build-rtree`) and a CSV file with locations (columns: id, lng, lat).
+
 ```bash
-./target/release/bench -l 13.4303813,52.528289 -b rtree.bin
-rtree:  32us 427ns (R²=1.000, 32975 iterations in 84 samples)
-flat:  177us 339ns (R²=0.999, 5919 iterations in 66 samples)
+./target/release/bench -- single \
+  --bin brandenburg-rtree.bin \
+  --locs 4000_locs.csv \
+  -m 16
+took 648.188979ms for 4000 requests
+took 672.047414ms for 4000 requests
+took 648.485565ms for 4000 requests
 ```
 
 ## Web Service
 
+The web service requires a pre-built rtree (w/ `build-rtree`). There are two routes. The `/bulk` endpoint accepts a CSV body with locations (columns: id, lng, lat):
+
+* `GET /locate?loc=LNG,LAT`
+* `POST /bulk`
+
 ```bash
-cargo r --release --bin service -- --bin rtree.bin
+./target/release/service --bin rtree.bin
 ```
 
 ```bash
