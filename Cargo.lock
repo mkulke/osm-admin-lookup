@@ -709,19 +709,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_logger"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
-dependencies = [
- "atty",
- "humantime",
- "log",
- "regex",
- "termcolor",
-]
-
-[[package]]
 name = "flat_map"
 version = "0.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -953,13 +940,14 @@ dependencies = [
 
 [[package]]
 name = "geo"
-version = "0.14.2"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "139007e3210dfc1d010e166e779059be5e0f31967a71f3edae97116aefb74450"
+checksum = "d893ed768bba4866e3e16b756c96ed7ef23ca270eac190000fc4e40c5d733467"
 dependencies = [
  "geo-types",
  "geographiclib-rs",
  "num-traits",
+ "robust",
  "rstar 0.8.2",
 ]
 
@@ -986,14 +974,15 @@ dependencies = [
 
 [[package]]
 name = "geojson"
-version = "0.19.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da98686bca3298df46f3957c78166cfbf0fa399e9efcdac0cb7ff2cfed1fd2ab"
+checksum = "f60273a5af6ab2d7d3c80de7d97b68bb61ebd11c9996573593d8e7eabe0f46be"
 dependencies = [
  "geo-types",
  "num-traits",
  "serde",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -1626,7 +1615,6 @@ dependencies = [
  "bincode",
  "derive_more",
  "easybench",
- "env_logger",
  "futures 0.3.8",
  "geo",
  "geo-types",
@@ -1656,9 +1644,9 @@ dependencies = [
 
 [[package]]
 name = "osm_boundaries_utils"
-version = "0.7.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8182ab764cf83a6972184baa2b72f52fad8c63667dea6be96f61f586a327787"
+checksum = "c2fd6aff2e6e543f245868de3caa9c5ef33db1d81b494de3323f7d82ff45f0fa"
 dependencies = [
  "geo",
  "geo-types",
@@ -2126,6 +2114,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "robust"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5864e7ef1a6b7bcf1d6ca3f655e65e724ed3b52546a0d0a663c991522f552ea"
+
+[[package]]
 name = "rstar"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2466,15 +2460,6 @@ dependencies = [
  "redox_syscall",
  "remove_dir_all",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "termcolor"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
-dependencies = [
- "winapi-util",
 ]
 
 [[package]]
@@ -3062,15 +3047,6 @@ name = "winapi-i686-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
-
-[[package]]
-name = "winapi-util"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70ec6ce85bb158151cae5e5c87f95a8e97d2c0c4b001223f33a334e3ce5de178"
-dependencies = [
- "winapi 0.3.9",
-]
 
 [[package]]
 name = "winapi-x86_64-pc-windows-gnu"
