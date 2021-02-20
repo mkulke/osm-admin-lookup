@@ -45,7 +45,7 @@ structopt = "0.3"
 env_logger = "0.7"
 log = "0.4"
 futures = "0.3"
-actix-web = "3.1"
+actix-web = "3.3"
 actix-utils = "2.0"
 derive_more = "0.99"
 tracing = "0.1"
@@ -60,9 +60,13 @@ opentelemetry-prometheus = "0.5"
 prometheus = "0.11"
 actix-web-opentelemetry = { version = "0.10", features = ["metrics"] }
 actix-service = "1.0"
-tokio = { version = "0.2", default-features = false, features = ["rt-core", "blocking", "time", "stream"] }
+tokio = { version = "0.2", default-features = false, features = ["rt-core", "blocking", "time", "stream", "macros"] }
+reqwest = "0.10"
+actix-rt = "1.1"
 
 [dev-dependencies]
-actix-rt = "1.1.1"
-reqwest = "0.10"
 lazy_static = "1.4"
+
+# Enable for cargo flamegraph
+# [profile.release]
+# debug = true

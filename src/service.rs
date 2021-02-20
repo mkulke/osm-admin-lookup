@@ -11,8 +11,6 @@ use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
-const PKG_NAME: &str = env!("CARGO_PKG_NAME");
-
 #[derive(Debug, StructOpt)]
 #[structopt(name = "service", about = "locate in rtree")]
 pub struct Opt {
@@ -43,7 +41,8 @@ async fn main() -> std::io::Result<()> {
     // init logger
     std::env::set_var("RUST_LOG", "info,actix_web=error");
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    let formatting_layer = BunyanFormattingLayer::new(PKG_NAME.into(), std::io::stdout);
+    let formatting_layer =
+        BunyanFormattingLayer::new(env!("CARGO_PKG_NAME").into(), std::io::stdout);
 
     let subscriber = Registry::default()
         .with(env_filter)
@@ -54,7 +53,7 @@ async fn main() -> std::io::Result<()> {
 
     // init tracer
     let (_tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
-        .with_service_name(PKG_NAME)
+        .with_service_name(env!("CARGO_PKG_NAME"))
         .install()
         .expect("jaeger pipeline install failed");
 

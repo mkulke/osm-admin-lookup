@@ -1,7 +1,9 @@
 use serde::de::Error as SerdeError;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::convert::TryFrom;
 use std::error::Error;
+use std::fmt;
 use std::num::ParseFloatError;
 use std::str::FromStr;
 
@@ -22,6 +24,22 @@ impl Location {
         }
 
         Ok(Location { lng, lat })
+    }
+}
+
+impl TryFrom<&str> for Location {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let ll: Vec<&str> = value.split(',').collect();
+        if ll.len() != 2 {
+            return Err(());
+        }
+        let lng_str = ll.get(0).ok_or(())?;
+        let lat_str = ll.get(1).ok_or(())?;
+        let lng = f64::from_str(lng_str).or(Err(()))?;
+        let lat = f64::from_str(lat_str).or(Err(()))?;
+        Location::new(lng, lat).or(Err(()))
     }
 }
 
@@ -57,6 +75,12 @@ impl Serialize for Location {
         state.serialize_field("lng", &self.lng)?;
         state.serialize_field("lat", &self.lat)?;
         state.end()
+    }
+}
+
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{},{}", self.lng, self.lat)
     }
 }
 

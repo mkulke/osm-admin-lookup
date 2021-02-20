@@ -54,7 +54,7 @@ struct ParsingError(String);
 
 impl error::ResponseError for ParsingError {}
 
-fn parse_loc_line_2(line: &str) -> Result<(&str, Location), ParsingError> {
+fn parse_loc_line(line: &str) -> Result<(&str, Location), ParsingError> {
     let parts: Vec<&str> = line.split(',').take(3).collect();
     if parts.len() != 3 {
         return Err(ParsingError(format!(
@@ -121,7 +121,7 @@ async fn bulk_stream(
 
 #[instrument(skip(tree))]
 fn process_line(line: &str, tree: &RTree<Boundary>) -> Result<String, ParsingError> {
-    let (id, loc) = parse_loc_line_2(line)?;
+    let (id, loc) = parse_loc_line(line)?;
     let names = boundary_names(&loc, tree);
     let output = format!("{},{}\n", id, names.join(","));
     Ok(output)
@@ -134,15 +134,12 @@ async fn bulk(mut payload: web::Payload, data: web::Data<Data>) -> Result<HttpRe
         bytes.extend_from_slice(&item?);
     }
     let output_lines = web::block(move || -> Result<Vec<String>, ParsingError> {
-        let process = |line: &&str| process_line(*line, &data.tree);
         let utf8_str = from_utf8(&bytes)
             .map_err(|_| ParsingError("could not parse payload into utf8 string".into()))?;
-        let lines: Vec<&str> = utf8_str.split_terminator('\n').collect();
-        if data.parallel {
-            lines.par_iter().map(process).collect()
-        } else {
-            lines.iter().map(process).collect()
-        }
+        utf8_str
+            .split_terminator('\n')
+            .map(|line| process_line(line, &data.tree))
+            .collect()
     })
     .await?;
     let body: String = output_lines.into_iter().collect();
@@ -150,16 +147,19 @@ async fn bulk(mut payload: web::Payload, data: web::Data<Data>) -> Result<HttpRe
     Ok(HttpResponse::Ok().body(body))
 }
 
-#[get("/locate")]
-async fn locate(query: web::Query<LocateQuery>, data: web::Data<Data>) -> impl Responder {
+#[get("/locate_with_block")]
+async fn locate_with_block(
+    query: web::Query<LocateQuery>,
+    data: web::Data<Data>,
+) -> impl Responder {
     let names = web::block(move || -> Result<_, ()> { Ok(boundary_names(&query.loc, &data.tree)) })
         .await
         .unwrap();
     web::Json(LocateResponse { names })
 }
 
-#[get("/locate_async")]
-async fn locate_async(query: web::Query<LocateQuery>, data: web::Data<Data>) -> impl Responder {
+#[get("/locate")]
+async fn locate(query: web::Query<LocateQuery>, data: web::Data<Data>) -> impl Responder {
     let names = boundary_names(&query.loc, &data.tree);
     web::Json(LocateResponse { names })
 }
@@ -215,8 +215,8 @@ pub fn run_service(config: ServiceConfig) -> Result<Server, std::io::Error> {
             .wrap(TracingLogger)
             .wrap(request_metrics.clone())
             .service(health)
+            .service(locate_with_block)
             .service(locate)
-            .service(locate_async)
             .service(bulk_stream)
             .service(bulk)
     })
