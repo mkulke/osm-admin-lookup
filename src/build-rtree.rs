@@ -20,13 +20,16 @@ struct Opt {
     bin_path: PathBuf,
 
     /// admin level to consider
-    #[structopt(short = "a", long = "admin-level", default_value = "4,6,8,9,10")]
-    admin_level: Vec<u8>,
+    #[structopt(short = "a", long = "admin-level")]
+    admin_level: Option<Vec<u8>>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
-    let boundaries = get_osm_boundaries(opt.pbf_path, &opt.admin_level)?;
+    let boundaries = get_osm_boundaries(
+        opt.pbf_path,
+        &opt.admin_level.unwrap_or_else(|| vec![4, 6, 8, 9, 10]),
+    )?;
     let tree = RTree::<Boundary>::bulk_load(boundaries);
     let encoded: Vec<u8> = bincode::serialize(&tree)?;
     write(opt.bin_path, encoded)?;

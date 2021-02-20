@@ -13,7 +13,7 @@ pub mod geojson;
 pub mod location;
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "build-rtree", about = "build rtree binary")]
+#[structopt(name = "locate", about = "locate in rtree")]
 struct Opt {
     /// rtree bin path
     #[structopt(short = "b", long = "bin")]
