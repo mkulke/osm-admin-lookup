@@ -51,12 +51,6 @@ async fn main() -> std::io::Result<()> {
     set_global_default(subscriber).expect("Failed to set subscriber");
     LogTracer::init().expect("Failed to set logger");
 
-    // init tracer
-    let (_tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
-        .with_service_name(env!("CARGO_PKG_NAME"))
-        .install()
-        .expect("jaeger pipeline install failed");
-
     let opt = Opt::from_args();
     let tree = load_tree(opt.bin_path)?;
     log::info!("rtree loaded");
