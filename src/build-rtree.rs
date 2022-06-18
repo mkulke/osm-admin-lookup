@@ -1,6 +1,4 @@
-use boundary::get_osm_boundaries;
-use boundary::Boundary;
-use rstar::RTree;
+use admin_lookup::build_rtree;
 use std::error::Error;
 use std::fs::write;
 use std::path::PathBuf;
@@ -26,12 +24,11 @@ struct Opt {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
-    let boundaries = get_osm_boundaries(
+    let rtree = build_rtree(
         opt.pbf_path,
         &opt.admin_level.unwrap_or_else(|| vec![4, 6, 8, 9, 10]),
     )?;
-    let tree = RTree::<Boundary>::bulk_load(boundaries);
-    let encoded: Vec<u8> = bincode::serialize(&tree)?;
+    let encoded: Vec<u8> = bincode::serialize(&rtree)?;
     write(opt.bin_path, encoded)?;
     Ok(())
 }

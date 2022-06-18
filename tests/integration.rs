@@ -1,84 +1,57 @@
-use osm_admin_hierarchies::{load_tree, run_service, ServiceConfig};
-use std::net::TcpListener;
+use actix_web::{test, web, App};
+use admin_lookup::build_rtree;
+use admin_lookup::service::{locate, LocateResponse};
+use std::sync::Arc;
 
-#[actix_rt::test]
-async fn locate_hit() {
-    // Arrange
-    let base_url = spawn_app();
-    let client = reqwest::Client::new();
-
-    // Act
-    let response = client
-        .get(&format!("{}/locate?loc=8.822,53.089", &base_url))
-        .send()
-        .await
-        .expect("Failed to execute request.");
-
-    // Assert
-    assert!(response.status().is_success());
-    let text = response.text().await.expect("failed to read body");
-    assert_eq!(text, "{\"names\":[\"Schwachhausen\"]}");
-}
-
-#[actix_rt::test]
-async fn locate_miss() {
-    // Arrange
-    let base_url = spawn_app();
-    let client = reqwest::Client::new();
-
-    // Act
-    let response = client
-        .get(&format!("{}/locate?loc=9.822,53.089", &base_url))
-        .send()
-        .await
-        .expect("Failed to execute request.");
-
-    // Assert
-    assert!(response.status().is_success());
-    let text = response.text().await.expect("failed to read body");
-    assert_eq!(text, "{\"names\":[]}");
-}
-
-#[actix_rt::test]
-async fn bulk() {
-    // Arrange
-    let base_url = spawn_app();
-    let client = reqwest::Client::new();
-    let locs = "1,8.859,53.090\n\
-                2,8.822,53.089\n\
-                3,0.0,0.0";
-
-    // Act
-    let response = client
-        .post(&format!("{}/bulk", &base_url))
-        .body(locs)
-        .send()
-        .await
-        .expect("Failed to execute request.");
-
-    // Assert
-    assert!(response.status().is_success());
-    let text = response.text().await.expect("failed to read body");
-    assert_eq!(
-        text,
-        "1,Schwachhausen\n\
-         2,Schwachhausen\n\
-         3,\n"
-    );
-}
-
-fn spawn_app() -> String {
+#[tokio::test]
+async fn locate_400() {
     let path = "./tests/data/schwachhausen.pbf";
-    let admin_levels = [10];
-    let tree = load_tree(path.into(), &admin_levels).expect("could not build rtree");
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
-    let port = listener.local_addr().unwrap().port();
-    let config = ServiceConfig {
-        tree,
-        parallel: false,
-        listener,
-    };
-    let server = run_service(config).expect("Failed to start server");
-    let _ = tokio::spawn(server);
-    format!("http://127.0.0.1:{}", port)
+    let rtree = build_rtree(path.into(), &[10]).expect("could not build rtree");
+    let state = Arc::new(rtree);
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state.clone()))
+            .service(locate),
+    )
+    .await;
+    let req = test::TestRequest::get().uri("/locate?loc=,1").to_request();
+    let res = test::call_service(&app, req).await;
+
+    assert_eq!(res.status(), 400);
+}
+
+#[tokio::test]
+async fn locate_hit() {
+    let path = "./tests/data/schwachhausen.pbf";
+    let rtree = build_rtree(path.into(), &[10]).expect("could not build rtree");
+    let state = Arc::new(rtree);
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state.clone()))
+            .service(locate),
+    )
+    .await;
+    let req = test::TestRequest::get()
+        .uri("/locate?loc=8.822,53.089")
+        .to_request();
+    let res: LocateResponse = test::call_and_read_body_json(&app, req).await;
+    assert_eq!(res.boundaries.len(), 1);
+    assert_eq!(res.boundaries[0].name, "Schwachhausen");
+    assert_eq!(res.boundaries[0].level, 10);
+}
+
+#[tokio::test]
+async fn locate_miss() {
+    let path = "./tests/data/schwachhausen.pbf";
+    let rtree = build_rtree(path.into(), &[10]).expect("could not build rtree");
+    let state = Arc::new(rtree);
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state.clone()))
+            .service(locate),
+    )
+    .await;
+    let req = test::TestRequest::get().uri("/locate?loc=0,0").to_request();
+    let res: LocateResponse = test::call_and_read_body_json(&app, req).await;
+    assert_eq!(res.boundaries.len(), 0);
 }

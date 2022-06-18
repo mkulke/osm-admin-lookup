@@ -33,10 +33,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let file = File::open(opt.bin_path)?;
     let tree: RTree<Boundary> = bincode::deserialize_from(file)?;
     let point: &[f64; 2] = &opt.loc.into();
-    let candidates: Vec<&Boundary> = tree.locate_all_at_point(&point).collect();
+    let candidates: Vec<&Boundary> = tree.locate_all_at_point(point).collect();
     let boundaries = candidates
         .into_par_iter()
-        .filter(|boundary| boundary.contains(&point))
+        .filter(|boundary| boundary.contains(point))
         .collect();
 
     match opt.geojson_path {

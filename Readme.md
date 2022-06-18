@@ -1,4 +1,4 @@
-# osm-admin-hierarchies
+# osm-admin-lookup
 
 ![Kreuzberg](kreuzberg.png)
 
