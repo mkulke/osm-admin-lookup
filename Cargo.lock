@@ -188,34 +188,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee2a4ec343196209d6594e19543ae87a39f96d5534d7174822a3ad825dd6ed7e"
 
 [[package]]
-name = "admin-lookup"
-version = "0.2.0"
-dependencies = [
- "actix-web",
- "bincode",
- "easybench",
- "futures-util",
- "geo",
- "geo-types",
- "geojson",
- "lazy_static",
- "osm_boundaries_utils",
- "osmpbfreader",
- "prometheus",
- "rayon",
- "rstar 0.6.0",
- "serde",
- "serde_json",
- "structopt",
- "time",
- "tokio",
- "tracing",
- "tracing-actix-web",
- "tracing-bunyan-formatter",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "ahash"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1045,6 +1017,34 @@ name = "once_cell"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7709cef83f0c1f58f666e746a08b21e0085f7440fa6a29cc194d68aac97a4225"
+
+[[package]]
+name = "osm-admin-lookup"
+version = "0.3.0"
+dependencies = [
+ "actix-web",
+ "bincode",
+ "easybench",
+ "futures-util",
+ "geo",
+ "geo-types",
+ "geojson",
+ "lazy_static",
+ "osm_boundaries_utils",
+ "osmpbfreader",
+ "prometheus",
+ "rayon",
+ "rstar 0.6.0",
+ "serde",
+ "serde_json",
+ "structopt",
+ "time",
+ "tokio",
+ "tracing",
+ "tracing-actix-web",
+ "tracing-bunyan-formatter",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "osm_boundaries_utils"

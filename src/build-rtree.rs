@@ -1,4 +1,4 @@
-use admin_lookup::build_rtree;
+use osm_admin_lookup::build_rtree;
 use std::error::Error;
 use std::fs::write;
 use std::path::PathBuf;

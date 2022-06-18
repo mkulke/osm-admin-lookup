@@ -1,6 +1,6 @@
 use actix_web::{test, web, App};
-use admin_lookup::build_rtree;
-use admin_lookup::service::{locate, LocateResponse};
+use osm_admin_lookup::build_rtree;
+use osm_admin_lookup::service::{locate, LocateResponse};
 use std::sync::Arc;
 
 #[tokio::test]

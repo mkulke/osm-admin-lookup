@@ -1,5 +1,5 @@
-use admin_lookup::load_tree;
-use admin_lookup::service::start;
+use osm_admin_lookup::load_tree;
+use osm_admin_lookup::service::start;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tracing::info;

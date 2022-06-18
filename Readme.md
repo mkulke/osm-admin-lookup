@@ -2,6 +2,8 @@
 
 ![Kreuzberg](kreuzberg.png)
 
+The project aims to provide performant lookups of administrative hierarchies for coordinates using OSM data and fast lookup trees.
+
 ## Prepare
 
 Download OSM bundle.
@@ -66,17 +68,29 @@ took 648.485565ms for 4000 requests
 
 ## Web Service
 
-The web service requires a pre-built rtree (w/ `build-rtree`). There are two routes. The `/bulk` endpoint accepts a CSV body with locations (columns: id, lng, lat):
-
-* `GET /locate?loc=LNG,LAT`
-* `POST /bulk`
+The web service requires a pre-built rtree (w/ `build-rtree`) and accepts coordinates in longitude,latitude format.
 
 ```bash
-./target/release/service --bin rtree.bin
+cargo run --release --bin admin-lookup -- --bin rtree.bin
 ```
 
 ```bash
 export LOC=13.425979614257812,52.53919655252312
-curl "localhost:8080/locate?loc=$LOC"
-{"names":["Berlin","Pankow","Prenzlauer Berg"]}
+curl -s "localhost:8080/locate?loc=$LOC | jq .
+{
+  "boundaries": [
+    {
+      "level": 4,
+      "name": "Berlin"
+    },
+    {
+      "level": 10,
+      "name": "Prenzlauer Berg"
+    },
+    {
+      "level": 9,
+      "name": "Pankow"
+    }
+  ]
+}
 ```
