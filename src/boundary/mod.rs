@@ -68,18 +68,18 @@ mod tests {
     use rstar::RTree;
 
     struct AABBWrapper(AABB<Point2D>);
-    impl Into<MultiPolygon<f64>> for AABBWrapper {
-        fn into(self) -> MultiPolygon<f64> {
-            let [min_x, min_y] = self.0.lower();
-            let [max_x, max_y] = self.0.upper();
-            let poly_rect = polygon![
+    impl From<AABBWrapper> for MultiPolygon<f64> {
+        fn from(aabb: AABBWrapper) -> Self {
+            let [min_x, min_y] = aabb.0.lower();
+            let [max_x, max_y] = aabb.0.upper();
+            polygon![
                 (x: min_x, y: min_y),
                 (x: min_x, y: max_y),
                 (x: max_x, y: max_y),
                 (x: max_x, y: min_y),
                 (x: min_x, y: min_y),
-            ];
-            vec![poly_rect].into()
+            ]
+            .into()
         }
     }
 
@@ -175,7 +175,7 @@ pub fn get_osm_boundaries(
         .filter_map(|rel| {
             let name = rel.tags.get("name")?;
             let admin_level = rel.tags.get("admin_level")?.parse().ok()?;
-            let multi_polygon = build_boundary(&rel, &btree)?;
+            let multi_polygon = build_boundary(rel, &btree)?;
             let boundary = Boundary::new(multi_polygon, name, admin_level);
             Some(boundary)
         })

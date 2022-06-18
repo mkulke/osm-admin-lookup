@@ -1,8 +1,8 @@
 use serde::de::Error as SerdeError;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::convert::TryFrom;
-use std::error::Error;
+use std::convert::{TryFrom, TryInto};
+// use std::error::Error;
 use std::fmt;
 use std::num::ParseFloatError;
 use std::str::FromStr;
@@ -28,31 +28,19 @@ impl Location {
 }
 
 impl TryFrom<&str> for Location {
-    type Error = ();
+    type Error = &'static str;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let error_msg = "location must be specified as 2 comma seperated floats";
         let ll: Vec<&str> = value.split(',').collect();
         if ll.len() != 2 {
-            return Err(());
+            return Err(error_msg);
         }
-        let lng_str = ll.get(0).ok_or(())?;
-        let lat_str = ll.get(1).ok_or(())?;
-        let lng = f64::from_str(lng_str).or(Err(()))?;
-        let lat = f64::from_str(lat_str).or(Err(()))?;
-        Location::new(lng, lat).or(Err(()))
-    }
-}
-
-fn parse_loc_str(loc_str: &str) -> Result<Location, Box<dyn Error>> {
-    let mut ll = loc_str.splitn(2, ',');
-    match (ll.next(), ll.next()) {
-        (Some(lng_str), Some(lat_str)) => {
-            let lng = f64::from_str(lng_str)?;
-            let lat = f64::from_str(lat_str)?;
-            let location = Location::new(lng, lat)?;
-            Ok(location)
-        }
-        _ => Err("location must be specified as 2 comma seperated floats".into()),
+        let lng_str = ll.get(0).ok_or(error_msg)?;
+        let lat_str = ll.get(1).ok_or(error_msg)?;
+        let lng = f64::from_str(lng_str).or(Err(error_msg))?;
+        let lat = f64::from_str(lat_str).or(Err(error_msg))?;
+        Location::new(lng, lat).or(Err(error_msg))
     }
 }
 
@@ -62,7 +50,7 @@ impl<'de> Deserialize<'de> for Location {
         D: Deserializer<'de>,
     {
         let string = String::deserialize(deserializer)?;
-        parse_loc_str(&string).map_err(SerdeError::custom)
+        string.as_str().try_into().map_err(SerdeError::custom)
     }
 }
 
