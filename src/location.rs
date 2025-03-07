@@ -36,7 +36,7 @@ impl TryFrom<&str> for Location {
         if ll.len() != 2 {
             return Err(error_msg);
         }
-        let lng_str = ll.get(0).ok_or(error_msg)?;
+        let lng_str = ll.first().ok_or(error_msg)?;
         let lat_str = ll.get(1).ok_or(error_msg)?;
         let lng = f64::from_str(lng_str).or(Err(error_msg))?;
         let lat = f64::from_str(lat_str).or(Err(error_msg))?;
