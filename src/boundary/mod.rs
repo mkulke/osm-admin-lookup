@@ -137,7 +137,7 @@ mod tests {
                 (x: max_x, y: min_y),
                 (x: min_x, y: min_y),
             ]
-                .into()
+            .into()
         }
     }
 
@@ -149,13 +149,13 @@ mod tests {
             ([0.25, 0.0], [0.75, 1.0], "middle"),
             ([0., 0.], [1.0, 1.0], "huge"),
         ]
-            .iter()
-            .map(|(lower, upper, name)| {
-                let aabb = AABB::from_corners(*lower, *upper);
-                let mp: MultiPolygon<f64> = AABBWrapper(aabb).into();
-                Boundary::new(mp, name, 0)
-            })
-            .collect();
+        .iter()
+        .map(|(lower, upper, name)| {
+            let aabb = AABB::from_corners(*lower, *upper);
+            let mp: MultiPolygon<f64> = AABBWrapper(aabb).into();
+            Boundary::new(mp, name, 0)
+        })
+        .collect();
 
         boundaries
     }
