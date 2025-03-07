@@ -61,6 +61,64 @@ impl PointDistance for Boundary {
     }
 }
 
+pub trait OsmObjExt {
+    fn get_relation(&self) -> Option<&Relation>;
+}
+
+impl OsmObjExt for OsmObj {
+    fn get_relation(&self) -> Option<&Relation> {
+        match self {
+            OsmObj::Relation(rel) => Some(rel),
+            _ => None,
+        }
+    }
+}
+
+fn get_admin<'a>(obj: &'a OsmObj, admin_levels: &[u8]) -> Option<&'a Relation> {
+    let rel = obj.get_relation()?;
+    if !obj.tags().contains("boundary", "administrative") {
+        return None;
+    }
+    let level: u8 = obj.tags().get("admin_level")?.parse().ok()?;
+    if !admin_levels.contains(&level) {
+        return None;
+    }
+    Some(rel)
+}
+
+type OsmMap = BTreeMap<OsmId, OsmObj>;
+fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
+    let mut pbf = OsmPbfReader::new(file);
+
+    let mut tuples = BTreeMap::new();
+    for result in pbf.iter() {
+        let obj = result?;
+        tuples.insert(obj.id(), obj);
+    }
+    Ok(tuples)
+}
+
+pub fn get_osm_boundaries(
+    path: PathBuf,
+    admin_levels: &[u8],
+) -> Result<Vec<Boundary>, Box<dyn Error>> {
+    let file = File::open(path)?;
+    let btree = get_btree(file)?;
+
+    let boundaries = btree
+        .values()
+        .filter_map(|obj| get_admin(obj, admin_levels))
+        .filter_map(|rel| {
+            let name = rel.tags.get("name")?;
+            let admin_level = rel.tags.get("admin_level")?.parse().ok()?;
+            let multi_polygon = build_boundary(rel, &btree)?;
+            let boundary = Boundary::new(multi_polygon, name, admin_level);
+            Some(boundary)
+        })
+        .collect();
+    Ok(boundaries)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,62 +181,4 @@ mod tests {
         let empty: Vec<String> = vec![];
         assert_eq!(names, empty);
     }
-}
-
-pub trait OsmObjExt {
-    fn get_relation(&self) -> Option<&Relation>;
-}
-
-impl OsmObjExt for OsmObj {
-    fn get_relation(&self) -> Option<&Relation> {
-        match self {
-            OsmObj::Relation(rel) => Some(rel),
-            _ => None,
-        }
-    }
-}
-
-fn get_admin<'a>(obj: &'a OsmObj, admin_levels: &[u8]) -> Option<&'a Relation> {
-    let rel = obj.get_relation()?;
-    if !obj.tags().contains("boundary", "administrative") {
-        return None;
-    }
-    let level: u8 = obj.tags().get("admin_level")?.parse().ok()?;
-    if !admin_levels.contains(&level) {
-        return None;
-    }
-    Some(rel)
-}
-
-type OsmMap = BTreeMap<OsmId, OsmObj>;
-fn get_btree(file: File) -> Result<OsmMap, Box<dyn Error>> {
-    let mut pbf = OsmPbfReader::new(file);
-
-    let mut tuples = BTreeMap::new();
-    for result in pbf.iter() {
-        let obj = result?;
-        tuples.insert(obj.id(), obj);
-    }
-    Ok(tuples)
-}
-
-pub fn get_osm_boundaries(
-    path: PathBuf,
-    admin_levels: &[u8],
-) -> Result<Vec<Boundary>, Box<dyn Error>> {
-    let file = File::open(path)?;
-    let btree = get_btree(file)?;
-
-    let boundaries = btree
-        .values()
-        .filter_map(|obj| get_admin(obj, admin_levels))
-        .filter_map(|rel| {
-            let name = rel.tags.get("name")?;
-            let admin_level = rel.tags.get("admin_level")?.parse().ok()?;
-            let multi_polygon = build_boundary(rel, &btree)?;
-            let boundary = Boundary::new(multi_polygon, name, admin_level);
-            Some(boundary)
-        })
-        .collect();
-    Ok(boundaries)
 }

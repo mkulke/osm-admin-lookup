@@ -12,7 +12,7 @@ pub mod service;
 
 pub type RTree = rstar::RTree<Boundary>;
 
-pub fn boundaries<'a, 'b>(loc: &'a Location, tree: &'b RTree) -> Vec<&'b Boundary> {
+pub fn boundaries<'b>(loc: &Location, tree: &'b RTree) -> Vec<&'b Boundary> {
     let point = loc.clone().into();
     let candidates: Vec<&Boundary> = tree
         .locate_all_at_point(&point)
